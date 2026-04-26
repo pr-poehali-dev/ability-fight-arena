@@ -56,57 +56,7 @@ export default function Index() {
   const [winner, setWinner] = useState<"player" | "enemy" | null>(null);
   const [lastHit, setLastHit] = useState<"player" | "enemy" | null>(null);
   const [selectedMode, setSelectedMode] = useState<"1v1" | "team" | "tournament">("1v1");
-  const [megaShieldActive, setMegaShieldActive] = useState(false);
-  const [megaShieldTime, setMegaShieldTime] = useState(0);
-  const [showDonateModal, setShowDonateModal] = useState(false);
-  const [donateLoading, setDonateLoading] = useState(false);
-  const [donateError, setDonateError] = useState<string | null>(null);
 
-  const CREATE_PAYMENT_URL = "https://functions.poehali.dev/6881dfa1-7ce2-4aa1-a09d-57b4d8d77ec7";
-  const CHECK_PAYMENT_URL = "https://functions.poehali.dev/98fed9d5-f6df-478e-b1d9-aef40a67323e";
-
-  const handleBuyShield = async () => {
-    setDonateLoading(true);
-    setDonateError(null);
-    try {
-      const returnUrl = window.location.href + (window.location.href.includes('?') ? '&' : '?') + 'shield_paid=1';
-      const res = await fetch(CREATE_PAYMENT_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ return_url: returnUrl }),
-      });
-      const data = await res.json();
-      if (data.confirmation_url) {
-        localStorage.setItem('arena_pending_payment', data.payment_id);
-        window.location.href = data.confirmation_url;
-      } else {
-        setDonateError('Не удалось создать платёж. Попробуй ещё раз.');
-      }
-    } catch {
-      setDonateError('Ошибка соединения. Попробуй ещё раз.');
-    } finally {
-      setDonateLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentId = localStorage.getItem('arena_pending_payment');
-    if (params.get('shield_paid') === '1' && paymentId) {
-      fetch(`${CHECK_PAYMENT_URL}?payment_id=${paymentId}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.paid) {
-            localStorage.removeItem('arena_pending_payment');
-            setMegaShieldActive(true);
-            setMegaShieldTime(5);
-            setShowDonateModal(false);
-            setBattleLog(log => ["🛡️ МЕГА ЩИТ активирован на 5 секунд!", ...log.slice(0, 5)]);
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   useEffect(() => {
     if (gameState === "matchmaking") {
@@ -127,33 +77,19 @@ export default function Index() {
     if (gameState !== "battle") return;
     const interval = setInterval(() => {
       setMatchTime(t => t + 1);
-      setMegaShieldTime(t => {
-        if (t > 0) {
-          if (t === 1) setMegaShieldActive(false);
-          return Math.max(0, t - 1);
-        }
-        return 0;
-      });
       if (Math.random() < 0.35) {
         const dmg = Math.floor(Math.random() * 18) + 8;
-        setMegaShieldActive(shield => {
-          if (shield) {
-            setBattleLog(log => [`🛡️ МЕГА ЩИТ поглотил ${dmg} урона!`, ...log.slice(0, 5)]);
-            return shield;
+        setPlayerHP(hp => {
+          const next = Math.max(0, hp - dmg);
+          if (next <= 0) {
+            setWinner("enemy");
+            setGameState("result");
           }
-          setPlayerHP(hp => {
-            const next = Math.max(0, hp - dmg);
-            if (next <= 0) {
-              setWinner("enemy");
-              setGameState("result");
-            }
-            return next;
-          });
-          setBattleLog(log => [`💥 Враг атаковал — ${dmg} урона!`, ...log.slice(0, 5)]);
-          setLastHit("player");
-          setTimeout(() => setLastHit(null), 300);
-          return shield;
+          return next;
         });
+        setBattleLog(log => [`💥 Враг атаковал — ${dmg} урона!`, ...log.slice(0, 5)]);
+        setLastHit("player");
+        setTimeout(() => setLastHit(null), 300);
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -294,13 +230,7 @@ export default function Index() {
                 >
                   Рейтинг
                 </button>
-                <button
-                  onClick={() => setShowDonateModal(true)}
-                  className="btn-battle text-white px-8 py-3 text-sm hover:brightness-110"
-                  style={{ background: "linear-gradient(135deg, #880e4f, #c62828)", boxShadow: "0 0 20px rgba(136,14,79,0.4)" }}
-                >
-                  🛡️ Мега щит — 49₽
-                </button>
+
               </div>
             </div>
 
@@ -490,22 +420,7 @@ export default function Index() {
                   ))}
                 </div>
 
-                {megaShieldActive && (
-                  <div className="mb-3 px-4 py-2 border text-center font-display text-sm tracking-wider uppercase animate-pulse" style={{ borderColor: "#c62828", background: "rgba(198,40,40,0.15)", color: "#ff6b6b" }}>
-                    🛡️ МЕГА ЩИТ АКТИВЕН — {megaShieldTime} СЕК
-                  </div>
-                )}
-
                 <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
-                  <button
-                    onClick={() => setShowDonateModal(true)}
-                    className="border p-3 text-center transition-all col-span-1"
-                    style={{ borderColor: "#c62828", background: "rgba(198,40,40,0.1)" }}
-                  >
-                    <div className="text-lg mb-1">🛡️</div>
-                    <div className="text-[9px] font-body leading-tight" style={{ color: "#ff6b6b" }}>Мега щит</div>
-                    <div className="text-[9px] font-display mt-1" style={{ color: "#e53935" }}>49 ₽</div>
-                  </button>
                   {ABILITIES.map(a => {
                     const cd = cooldowns[a.id] || 0;
                     return (
@@ -867,45 +782,7 @@ export default function Index() {
         <span className="text-muted-foreground text-xs font-display tracking-widest uppercase">АРЕНА · Сезон 4 · 2026</span>
       </footer>
 
-      {showDonateModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowDonateModal(false)}>
-          <div
-            className="relative max-w-sm w-full mx-4 border p-8 text-center"
-            style={{ background: "#111", borderColor: "#c62828", boxShadow: "0 0 40px rgba(229,57,53,0.3)" }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #e53935, transparent)" }} />
-            <div className="text-5xl mb-4">🛡️</div>
-            <h2 className="font-display text-3xl font-bold uppercase tracking-wider mb-2" style={{ color: "#e53935" }}>Мега щит</h2>
-            <p className="text-muted-foreground font-body text-sm mb-6 leading-relaxed">
-              Неуязвимость на <span className="text-white font-bold">5 секунд</span> — ни один удар врага не пройдёт сквозь щит. Активируется прямо в бою!
-            </p>
-            <div className="border border-subtle p-4 mb-6" style={{ background: "#0a0a0a" }}>
-              <div className="font-display text-5xl font-bold mb-1" style={{ color: "#e53935" }}>49 ₽</div>
-              <div className="text-muted-foreground text-xs font-body uppercase tracking-wider">разовая покупка · 1 бой</div>
-            </div>
-            {donateError && (
-              <div className="mb-3 text-sm font-body px-3 py-2 border border-red-800 bg-red-950/40" style={{ color: "#ff6b6b" }}>
-                {donateError}
-              </div>
-            )}
-            <button
-              onClick={handleBuyShield}
-              disabled={donateLoading}
-              className="btn-battle w-full py-4 text-lg text-white mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
-              style={{ background: "linear-gradient(135deg, #c62828, #e53935)", boxShadow: "0 0 20px rgba(229,57,53,0.4)" }}
-            >
-              {donateLoading ? "Переходим к оплате..." : "Купить за 49 ₽"}
-            </button>
-            <button
-              onClick={() => setShowDonateModal(false)}
-              className="text-muted-foreground text-xs font-display tracking-wider uppercase hover:text-foreground transition-colors"
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
