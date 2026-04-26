@@ -6,7 +6,7 @@ type Page = "home" | "game" | "profile" | "abilities" | "rating" | "achievements
 const ABILITIES = [
   { id: 0, name: "Мини удар", key: "Z", type: "Атака", damage: 15, cooldown: 1, desc: "Быстрый удар без замаха. Малый урон, почти нет отката", color: "#FF6B6B", icon: "MousePointerClick" },
   { id: 1, name: "Удар молнии", key: "Q", type: "Атака", damage: 45, cooldown: 3, desc: "Наносит мгновенный урон с оглушением на 1 сек", color: "#29B6F6", icon: "Zap" },
-  { id: 2, name: "Огненный шар", key: "W", type: "Атака", damage: 70, cooldown: 5, desc: "Область поражения 3м, поджигает врага", color: "#F0B429", icon: "Flame" },
+  { id: 2, name: "Огненный шар", key: "W", type: "Атака", damage: 55, cooldown: 5, desc: "Область поражения 3м, поджигает врага", color: "#F0B429", icon: "Flame" },
   { id: 3, name: "Щит теней", key: "E", type: "Защита", damage: 0, cooldown: 8, desc: "Поглощает 120 урона в течение 4 сек", color: "#9C27B0", icon: "Shield" },
   { id: 4, name: "Рывок", key: "R", type: "Движение", damage: 20, cooldown: 6, desc: "Телепорт на 5м + урон при приземлении", color: "#4CAF50", icon: "Wind" },
   { id: 5, name: "Разрыв земли", key: "F", type: "Контроль", damage: 35, cooldown: 10, desc: "Замедляет всех врагов в радиусе 5м", color: "#E53935", icon: "Mountain" },
