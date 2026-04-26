@@ -59,7 +59,54 @@ export default function Index() {
   const [megaShieldActive, setMegaShieldActive] = useState(false);
   const [megaShieldTime, setMegaShieldTime] = useState(0);
   const [showDonateModal, setShowDonateModal] = useState(false);
-  const [donateSuccess, setDonateSuccess] = useState(false);
+  const [donateLoading, setDonateLoading] = useState(false);
+  const [donateError, setDonateError] = useState<string | null>(null);
+
+  const CREATE_PAYMENT_URL = "https://functions.poehali.dev/6881dfa1-7ce2-4aa1-a09d-57b4d8d77ec7";
+  const CHECK_PAYMENT_URL = "https://functions.poehali.dev/98fed9d5-f6df-478e-b1d9-aef40a67323e";
+
+  const handleBuyShield = async () => {
+    setDonateLoading(true);
+    setDonateError(null);
+    try {
+      const returnUrl = window.location.href + (window.location.href.includes('?') ? '&' : '?') + 'shield_paid=1';
+      const res = await fetch(CREATE_PAYMENT_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ return_url: returnUrl }),
+      });
+      const data = await res.json();
+      if (data.confirmation_url) {
+        localStorage.setItem('arena_pending_payment', data.payment_id);
+        window.location.href = data.confirmation_url;
+      } else {
+        setDonateError('Не удалось создать платёж. Попробуй ещё раз.');
+      }
+    } catch {
+      setDonateError('Ошибка соединения. Попробуй ещё раз.');
+    } finally {
+      setDonateLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const paymentId = localStorage.getItem('arena_pending_payment');
+    if (params.get('shield_paid') === '1' && paymentId) {
+      fetch(`${CHECK_PAYMENT_URL}?payment_id=${paymentId}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data.paid) {
+            localStorage.removeItem('arena_pending_payment');
+            setMegaShieldActive(true);
+            setMegaShieldTime(5);
+            setShowDonateModal(false);
+            setBattleLog(log => ["🛡️ МЕГА ЩИТ активирован на 5 секунд!", ...log.slice(0, 5)]);
+          }
+        })
+        .catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     if (gameState === "matchmaking") {
@@ -837,30 +884,19 @@ export default function Index() {
               <div className="font-display text-5xl font-bold mb-1" style={{ color: "#e53935" }}>49 ₽</div>
               <div className="text-muted-foreground text-xs font-body uppercase tracking-wider">разовая покупка · 1 бой</div>
             </div>
-            {!donateSuccess ? (
-              <button
-                onClick={() => {
-                  setDonateSuccess(true);
-                  setTimeout(() => {
-                    setShowDonateModal(false);
-                    setDonateSuccess(false);
-                    if (gameState === "battle") {
-                      setMegaShieldActive(true);
-                      setMegaShieldTime(5);
-                      setBattleLog(log => ["🛡️ МЕГА ЩИТ активирован на 5 секунд!", ...log.slice(0, 5)]);
-                    }
-                  }, 1500);
-                }}
-                className="btn-battle w-full py-4 text-lg text-white mb-3"
-                style={{ background: "linear-gradient(135deg, #c62828, #e53935)", boxShadow: "0 0 20px rgba(229,57,53,0.4)" }}
-              >
-                Купить за 49 ₽
-              </button>
-            ) : (
-              <div className="py-4 font-display text-lg tracking-wider" style={{ color: "#4CAF50" }}>
-                ✓ Оплата прошла! Щит активирован!
+            {donateError && (
+              <div className="mb-3 text-sm font-body px-3 py-2 border border-red-800 bg-red-950/40" style={{ color: "#ff6b6b" }}>
+                {donateError}
               </div>
             )}
+            <button
+              onClick={handleBuyShield}
+              disabled={donateLoading}
+              className="btn-battle w-full py-4 text-lg text-white mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
+              style={{ background: "linear-gradient(135deg, #c62828, #e53935)", boxShadow: "0 0 20px rgba(229,57,53,0.4)" }}
+            >
+              {donateLoading ? "Переходим к оплате..." : "Купить за 49 ₽"}
+            </button>
             <button
               onClick={() => setShowDonateModal(false)}
               className="text-muted-foreground text-xs font-display tracking-wider uppercase hover:text-foreground transition-colors"
