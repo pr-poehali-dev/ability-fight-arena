@@ -56,55 +56,7 @@ export default function Index() {
   const [winner, setWinner] = useState<"player" | "enemy" | null>(null);
   const [lastHit, setLastHit] = useState<"player" | "enemy" | null>(null);
   const [selectedMode, setSelectedMode] = useState<"1v1" | "team" | "tournament">("1v1");
-  const [bonusActive, setBonusActive] = useState(false);
-  const [showBonusModal, setShowBonusModal] = useState(false);
-  const [bonusLoading, setBonusLoading] = useState(false);
-  const [bonusError, setBonusError] = useState<string | null>(null);
 
-  const CREATE_BONUS_URL = "https://functions.poehali.dev/e8162b0f-b9b0-4ab8-990e-087eeb22a6c9";
-  const CHECK_BONUS_URL = "https://functions.poehali.dev/15cb08ec-fb98-4fa6-84cf-4b8761f509c9";
-
-  const handleBuyBonus = async () => {
-    setBonusLoading(true);
-    setBonusError(null);
-    try {
-      const returnUrl = window.location.href.split('?')[0] + '?bonus_paid=1';
-      const res = await fetch(CREATE_BONUS_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ return_url: returnUrl }),
-      });
-      const data = await res.json();
-      if (data.confirmation_url) {
-        localStorage.setItem('arena_bonus_payment', data.payment_id);
-        window.location.href = data.confirmation_url;
-      } else {
-        setBonusError('Не удалось создать платёж. Попробуй ещё раз.');
-      }
-    } catch {
-      setBonusError('Ошибка соединения. Попробуй ещё раз.');
-    } finally {
-      setBonusLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const paymentId = localStorage.getItem('arena_bonus_payment');
-    if (params.get('bonus_paid') === '1' && paymentId) {
-      fetch(`${CHECK_BONUS_URL}?payment_id=${paymentId}`)
-        .then(r => r.json())
-        .then(data => {
-          if (data.paid) {
-            localStorage.removeItem('arena_bonus_payment');
-            setBonusActive(true);
-            setShowBonusModal(false);
-            window.history.replaceState({}, '', window.location.pathname);
-          }
-        })
-        .catch(() => {});
-    }
-  }, []);
 
   useEffect(() => {
     if (gameState === "matchmaking") {
@@ -278,14 +230,7 @@ export default function Index() {
                 >
                   Рейтинг
                 </button>
-                <button
-                  onClick={() => setShowBonusModal(true)}
-                  className="btn-battle text-white px-8 py-3 text-sm hover:brightness-110 relative"
-                  style={{ background: "linear-gradient(135deg, #e65100, #ff6d00)", boxShadow: "0 0 20px rgba(255,109,0,0.35)" }}
-                >
-                  {bonusActive && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-green-400" />}
-                  ⚡ Бонус x2 — 49₽
-                </button>
+
 
               </div>
             </div>
@@ -511,16 +456,11 @@ export default function Index() {
                 <div className={`font-display text-8xl font-bold mb-4 ${winner === "player" ? "text-gradient-gold" : "neon-red"}`}>
                   {winner === "player" ? "ПОБЕДА" : "ПОРАЖЕНИЕ"}
                 </div>
-                <p className="text-muted-foreground font-body mb-2">
+                <p className="text-muted-foreground font-body mb-8">
                   {winner === "player"
-                    ? bonusActive ? "" : "Отличная игра! +120 очков рейтинга"
+                    ? "Отличная игра! +120 очков рейтинга"
                     : "Не сдавайся! Следующий бой будет за тобой"}
                 </p>
-                {winner === "player" && bonusActive && (
-                  <div className="mb-6 px-6 py-3 border font-display text-lg tracking-wider uppercase" style={{ borderColor: "#ff6d00", background: "rgba(255,109,0,0.1)", color: "#ff6d00" }}>
-                    ⚡ БОНУС x2 АКТИВЕН — +240 очков рейтинга!
-                  </div>
-                )}
                 <div className="flex gap-6 mb-8 font-body text-sm">
                   <div className="text-center">
                     <div className="font-display text-2xl font-bold text-foreground">{100 - playerHP}</div>
@@ -539,13 +479,13 @@ export default function Index() {
                 </div>
                 <div className="flex gap-3">
                   <button
-                    onClick={() => { setBonusActive(false); setGameState("matchmaking"); }}
+                    onClick={() => setGameState("matchmaking")}
                     className="btn-battle bg-primary text-primary-foreground px-8 py-3 text-sm glow-gold"
                   >
                     Реванш
                   </button>
                   <button
-                    onClick={() => { setBonusActive(false); setGameState("lobby"); }}
+                    onClick={() => setGameState("lobby")}
                     className="btn-battle border border-subtle text-foreground px-8 py-3 text-sm hover:border-primary/30"
                   >
                     В лобби
@@ -843,53 +783,7 @@ export default function Index() {
         <span className="text-muted-foreground text-xs font-display tracking-widest uppercase">АРЕНА · Сезон 4 · 2026</span>
       </footer>
 
-      {showBonusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowBonusModal(false)}>
-          <div
-            className="relative max-w-sm w-full mx-4 border p-8 text-center"
-            style={{ background: "#111", borderColor: "#e65100", boxShadow: "0 0 40px rgba(255,109,0,0.25)" }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #ff6d00, transparent)" }} />
-            <div className="text-5xl mb-4">⚡</div>
-            <h2 className="font-display text-3xl font-bold uppercase tracking-wider mb-2" style={{ color: "#ff6d00" }}>Бонус за победу</h2>
-            <p className="text-muted-foreground font-body text-sm mb-6 leading-relaxed">
-              Следующая победа принесёт <span className="text-white font-bold">x2 очков рейтинга</span> — вместо +120 получишь <span className="text-white font-bold">+240</span>!
-            </p>
-            <div className="border border-subtle p-4 mb-6" style={{ background: "#0a0a0a" }}>
-              <div className="font-display text-5xl font-bold mb-1" style={{ color: "#ff6d00" }}>49 ₽</div>
-              <div className="text-muted-foreground text-xs font-body uppercase tracking-wider">разовая покупка · 1 победа</div>
-            </div>
-            {bonusActive ? (
-              <div className="py-3 mb-3 border font-display tracking-wider text-sm uppercase" style={{ borderColor: "#4CAF50", color: "#4CAF50", background: "rgba(76,175,80,0.1)" }}>
-                ✓ Бонус уже активен!
-              </div>
-            ) : (
-              <>
-                {bonusError && (
-                  <div className="mb-3 text-sm font-body px-3 py-2 border border-red-800 bg-red-950/40" style={{ color: "#ff6b6b" }}>
-                    {bonusError}
-                  </div>
-                )}
-                <button
-                  onClick={handleBuyBonus}
-                  disabled={bonusLoading}
-                  className="btn-battle w-full py-4 text-lg text-white mb-3 disabled:opacity-60 disabled:cursor-not-allowed"
-                  style={{ background: "linear-gradient(135deg, #e65100, #ff6d00)", boxShadow: "0 0 20px rgba(255,109,0,0.4)" }}
-                >
-                  {bonusLoading ? "Переходим к оплате..." : "Купить за 49 ₽"}
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setShowBonusModal(false)}
-              className="text-muted-foreground text-xs font-display tracking-wider uppercase hover:text-foreground transition-colors"
-            >
-              Закрыть
-            </button>
-          </div>
-        </div>
-      )}
+
 
     </div>
   );
