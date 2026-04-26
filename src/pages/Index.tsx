@@ -4,6 +4,7 @@ import Icon from "@/components/ui/icon";
 type Page = "home" | "game" | "profile" | "abilities" | "rating" | "achievements";
 
 const ABILITIES = [
+  { id: 0, name: "Мини удар", key: "Z", type: "Атака", damage: 15, cooldown: 1, desc: "Быстрый удар без замаха. Малый урон, почти нет отката", color: "#FF6B6B", icon: "MousePointerClick" },
   { id: 1, name: "Удар молнии", key: "Q", type: "Атака", damage: 45, cooldown: 3, desc: "Наносит мгновенный урон с оглушением на 1 сек", color: "#29B6F6", icon: "Zap" },
   { id: 2, name: "Огненный шар", key: "W", type: "Атака", damage: 70, cooldown: 5, desc: "Область поражения 3м, поджигает врага", color: "#F0B429", icon: "Flame" },
   { id: 3, name: "Щит теней", key: "E", type: "Защита", damage: 0, cooldown: 8, desc: "Поглощает 120 урона в течение 4 сек", color: "#9C27B0", icon: "Shield" },
@@ -55,6 +56,10 @@ export default function Index() {
   const [winner, setWinner] = useState<"player" | "enemy" | null>(null);
   const [lastHit, setLastHit] = useState<"player" | "enemy" | null>(null);
   const [selectedMode, setSelectedMode] = useState<"1v1" | "team" | "tournament">("1v1");
+  const [megaShieldActive, setMegaShieldActive] = useState(false);
+  const [megaShieldTime, setMegaShieldTime] = useState(0);
+  const [showDonateModal, setShowDonateModal] = useState(false);
+  const [donateSuccess, setDonateSuccess] = useState(false);
 
   useEffect(() => {
     if (gameState === "matchmaking") {
@@ -75,19 +80,33 @@ export default function Index() {
     if (gameState !== "battle") return;
     const interval = setInterval(() => {
       setMatchTime(t => t + 1);
+      setMegaShieldTime(t => {
+        if (t > 0) {
+          if (t === 1) setMegaShieldActive(false);
+          return Math.max(0, t - 1);
+        }
+        return 0;
+      });
       if (Math.random() < 0.35) {
         const dmg = Math.floor(Math.random() * 18) + 8;
-        setPlayerHP(hp => {
-          const next = Math.max(0, hp - dmg);
-          if (next <= 0) {
-            setWinner("enemy");
-            setGameState("result");
+        setMegaShieldActive(shield => {
+          if (shield) {
+            setBattleLog(log => [`🛡️ МЕГА ЩИТ поглотил ${dmg} урона!`, ...log.slice(0, 5)]);
+            return shield;
           }
-          return next;
+          setPlayerHP(hp => {
+            const next = Math.max(0, hp - dmg);
+            if (next <= 0) {
+              setWinner("enemy");
+              setGameState("result");
+            }
+            return next;
+          });
+          setBattleLog(log => [`💥 Враг атаковал — ${dmg} урона!`, ...log.slice(0, 5)]);
+          setLastHit("player");
+          setTimeout(() => setLastHit(null), 300);
+          return shield;
         });
-        setBattleLog(log => [`💥 Враг атаковал — ${dmg} урона!`, ...log.slice(0, 5)]);
-        setLastHit("player");
-        setTimeout(() => setLastHit(null), 300);
       }
     }, 1000);
     return () => clearInterval(interval);
@@ -199,14 +218,15 @@ export default function Index() {
         {/* ===== HOME ===== */}
         {page === "home" && (
           <div className="animate-fade-in">
-            <div className="relative py-16 text-center mb-12 overflow-hidden">
-              <div className="absolute inset-0 flex items-center justify-center opacity-5 pointer-events-none">
-                <div className="w-[600px] h-[600px] rounded-full border border-primary" />
+            <div className="relative py-16 text-center mb-12 overflow-hidden" style={{ background: "linear-gradient(180deg, rgba(229,57,53,0.08) 0%, transparent 100%)" }}>
+              <div className="absolute inset-0 flex items-center justify-center opacity-10 pointer-events-none">
+                <div className="w-[600px] h-[600px] rounded-full border border-red-600" />
               </div>
-              <p className="text-muted-foreground font-display tracking-[0.4em] text-sm uppercase mb-4 animate-slide-up stagger-1">
+              <div className="absolute inset-0 pointer-events-none" style={{ background: "radial-gradient(ellipse at center, rgba(229,57,53,0.12) 0%, transparent 70%)" }} />
+              <p className="font-display tracking-[0.4em] text-sm uppercase mb-4 animate-slide-up stagger-1" style={{ color: "#e53935" }}>
                 Онлайн Битвы
               </p>
-              <h1 className="font-display text-7xl md:text-9xl font-bold text-gradient-gold mb-6 animate-slide-up stagger-2">
+              <h1 className="font-display text-7xl md:text-9xl font-bold mb-6 animate-slide-up stagger-2" style={{ background: "linear-gradient(135deg, #e53935 0%, #ff6b6b 50%, #c62828 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
                 АРЕНА
               </h1>
               <p className="text-muted-foreground font-body text-lg max-w-md mx-auto mb-10 animate-slide-up stagger-3">
@@ -215,15 +235,24 @@ export default function Index() {
               <div className="flex gap-3 justify-center flex-wrap animate-slide-up stagger-4">
                 <button
                   onClick={() => { setPage("game"); setGameState("lobby"); }}
-                  className="btn-battle bg-primary text-primary-foreground px-8 py-3 text-sm glow-gold hover:brightness-110"
+                  className="btn-battle text-white px-8 py-3 text-sm hover:brightness-110"
+                  style={{ background: "#e53935", boxShadow: "0 0 20px rgba(229,57,53,0.4), 0 0 40px rgba(229,57,53,0.15)" }}
                 >
                   В бой
                 </button>
                 <button
                   onClick={() => setPage("rating")}
-                  className="btn-battle border border-subtle text-foreground px-8 py-3 text-sm hover:border-primary/50"
+                  className="btn-battle border text-foreground px-8 py-3 text-sm hover:brightness-110"
+                  style={{ borderColor: "rgba(229,57,53,0.5)" }}
                 >
                   Рейтинг
+                </button>
+                <button
+                  onClick={() => setShowDonateModal(true)}
+                  className="btn-battle text-white px-8 py-3 text-sm hover:brightness-110"
+                  style={{ background: "linear-gradient(135deg, #880e4f, #c62828)", boxShadow: "0 0 20px rgba(136,14,79,0.4)" }}
+                >
+                  🛡️ Мега щит — 49₽
                 </button>
               </div>
             </div>
@@ -320,9 +349,9 @@ export default function Index() {
                 </div>
 
                 <div className="bg-surface-2 border border-subtle p-6 mb-6">
-                  <h3 className="font-display text-lg uppercase tracking-wider mb-4">Твои способности (4 активных)</h3>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {ABILITIES.slice(0, 4).map(a => (
+                  <h3 className="font-display text-lg uppercase tracking-wider mb-4">Твои способности (5 активных)</h3>
+                  <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                    {ABILITIES.slice(0, 5).map(a => (
                       <div key={a.id} className="border border-subtle p-3 text-center">
                         <div className="font-display text-2xl font-bold mb-1" style={{ color: a.color }}>{a.key}</div>
                         <div className="text-xs font-body text-muted-foreground">{a.name}</div>
@@ -414,7 +443,22 @@ export default function Index() {
                   ))}
                 </div>
 
-                <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                {megaShieldActive && (
+                  <div className="mb-3 px-4 py-2 border text-center font-display text-sm tracking-wider uppercase animate-pulse" style={{ borderColor: "#c62828", background: "rgba(198,40,40,0.15)", color: "#ff6b6b" }}>
+                    🛡️ МЕГА ЩИТ АКТИВЕН — {megaShieldTime} СЕК
+                  </div>
+                )}
+
+                <div className="grid grid-cols-3 md:grid-cols-7 gap-2">
+                  <button
+                    onClick={() => setShowDonateModal(true)}
+                    className="border p-3 text-center transition-all col-span-1"
+                    style={{ borderColor: "#c62828", background: "rgba(198,40,40,0.1)" }}
+                  >
+                    <div className="text-lg mb-1">🛡️</div>
+                    <div className="text-[9px] font-body leading-tight" style={{ color: "#ff6b6b" }}>Мега щит</div>
+                    <div className="text-[9px] font-display mt-1" style={{ color: "#e53935" }}>49 ₽</div>
+                  </button>
                   {ABILITIES.map(a => {
                     const cd = cooldowns[a.id] || 0;
                     return (
@@ -494,7 +538,7 @@ export default function Index() {
           <div className="animate-fade-in">
             <div className="flex items-center justify-between mb-8">
               <h1 className="font-display text-4xl font-bold uppercase tracking-wider">Способности</h1>
-              <span className="text-muted-foreground font-body text-sm">6 доступно</span>
+              <span className="text-muted-foreground font-body text-sm">7 доступно</span>
             </div>
 
             <div className="grid md:grid-cols-2 gap-4">
@@ -541,7 +585,8 @@ export default function Index() {
             <div className="mt-8 bg-surface-2 border border-primary/20 p-4">
               <p className="text-muted-foreground text-sm font-body">
                 <span className="text-primary font-display uppercase tracking-wider">Подсказка</span> — В бою нажимай{" "}
-                <span className="text-foreground font-display">Q W E R F G</span> для быстрого применения способностей.
+                <span className="text-foreground font-display">Z Q W E R F G</span> для быстрого применения способностей.{" "}
+                <span style={{ color: "#FF6B6B" }} className="font-display">Z</span> — мини удар, всегда под рукой!
               </p>
             </div>
           </div>
@@ -774,6 +819,57 @@ export default function Index() {
       <footer className="border-t border-subtle py-4 text-center">
         <span className="text-muted-foreground text-xs font-display tracking-widest uppercase">АРЕНА · Сезон 4 · 2026</span>
       </footer>
+
+      {showDonateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={() => setShowDonateModal(false)}>
+          <div
+            className="relative max-w-sm w-full mx-4 border p-8 text-center"
+            style={{ background: "#111", borderColor: "#c62828", boxShadow: "0 0 40px rgba(229,57,53,0.3)" }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="absolute top-0 left-0 right-0 h-0.5" style={{ background: "linear-gradient(90deg, transparent, #e53935, transparent)" }} />
+            <div className="text-5xl mb-4">🛡️</div>
+            <h2 className="font-display text-3xl font-bold uppercase tracking-wider mb-2" style={{ color: "#e53935" }}>Мега щит</h2>
+            <p className="text-muted-foreground font-body text-sm mb-6 leading-relaxed">
+              Неуязвимость на <span className="text-white font-bold">5 секунд</span> — ни один удар врага не пройдёт сквозь щит. Активируется прямо в бою!
+            </p>
+            <div className="border border-subtle p-4 mb-6" style={{ background: "#0a0a0a" }}>
+              <div className="font-display text-5xl font-bold mb-1" style={{ color: "#e53935" }}>49 ₽</div>
+              <div className="text-muted-foreground text-xs font-body uppercase tracking-wider">разовая покупка · 1 бой</div>
+            </div>
+            {!donateSuccess ? (
+              <button
+                onClick={() => {
+                  setDonateSuccess(true);
+                  setTimeout(() => {
+                    setShowDonateModal(false);
+                    setDonateSuccess(false);
+                    if (gameState === "battle") {
+                      setMegaShieldActive(true);
+                      setMegaShieldTime(5);
+                      setBattleLog(log => ["🛡️ МЕГА ЩИТ активирован на 5 секунд!", ...log.slice(0, 5)]);
+                    }
+                  }, 1500);
+                }}
+                className="btn-battle w-full py-4 text-lg text-white mb-3"
+                style={{ background: "linear-gradient(135deg, #c62828, #e53935)", boxShadow: "0 0 20px rgba(229,57,53,0.4)" }}
+              >
+                Купить за 49 ₽
+              </button>
+            ) : (
+              <div className="py-4 font-display text-lg tracking-wider" style={{ color: "#4CAF50" }}>
+                ✓ Оплата прошла! Щит активирован!
+              </div>
+            )}
+            <button
+              onClick={() => setShowDonateModal(false)}
+              className="text-muted-foreground text-xs font-display tracking-wider uppercase hover:text-foreground transition-colors"
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
